@@ -98,6 +98,8 @@ int init() {
         cerr << "TSL2561 setup error" << endl;
         return 1;
     }
+    
+    return 0;
 }
 
 /*
@@ -167,7 +169,7 @@ int main(int argc, char** argv) {
         
         if(duration < minDuration) {
             minDuration = duration;
-        }
+        }        
     }
     
     // Print duration data

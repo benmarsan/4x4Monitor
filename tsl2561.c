@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
-#include <linux/i2c-dev.h>
+#include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <time.h>
 #endif
@@ -170,6 +170,7 @@
 typedef struct tsl2561_t {
 	int file;
 	int address;
+    int fd;
 	uint8_t gain;
 	uint8_t integration_time;
 	bool  autogain;
@@ -206,7 +207,8 @@ void tsl2561_init_error_cleanup(void *_tsl);
  */
 uint8_t tsl2561_write_byte_data(void *_tsl, uint8_t reg, uint8_t value) {
 	tsl2561_t *tsl = TO_TSL(_tsl);
-	uint8_t data = i2c_smbus_write_byte_data(tsl->file, reg, value);
+	//uint8_t data = i2c_smbus_write_byte_data(tsl->file, reg, value);
+    uint8_t data = wiringPiI2CWriteReg8(tsl->fd, reg, value);
 	
 	DEBUG("device %#x: write %#x to register %#x\n", tsl->address, value, reg);
 	
@@ -228,8 +230,9 @@ uint8_t tsl2561_write_byte_data(void *_tsl, uint8_t reg, uint8_t value) {
  */
 uint16_t tsl2561_write_word_data(void *_tsl, uint8_t reg, uint8_t value) {
 	tsl2561_t *tsl = TO_TSL(_tsl);
-	uint16_t data = i2c_smbus_write_word_data(tsl->file, reg, value);
-	
+	//uint16_t data = i2c_smbus_write_word_data(tsl->file, reg, value);
+	uint16_t data = wiringPiI2CWriteReg16(tsl->fd, reg, value);
+    
 	DEBUG("device %#x: write %#x to register %#x\n", tsl->address, value, reg);
 
 	if(data < 0)
@@ -254,8 +257,9 @@ int16_t tsl2561_read_word_data(void *_tsl, uint8_t reg) {
 	if(error < 0)
 		return -1;
 
-	int16_t data = i2c_smbus_read_word_data(tsl->file, reg);
-	DEBUG("device %#x: read %#x from register %#x\n", tsl->address, data, reg);
+	//int16_t data = i2c_smbus_read_word_data(tsl->file, reg);
+	int16_t data = wiringPiI2CReadReg16(tsl->fd, reg);
+    DEBUG("device %#x: read %#x from register %#x\n", tsl->address, data, reg);
  
 	return data;
 }
@@ -269,10 +273,10 @@ int16_t tsl2561_read_word_data(void *_tsl, uint8_t reg) {
  */
 int tsl2561_set_addr(void *_tsl) {
 	tsl2561_t* tsl = TO_TSL(_tsl);
-	int error;
+	int error = 0;
 
-	if((error = ioctl(tsl->file, I2C_SLAVE, tsl->address)) < 0)
-		DEBUG("error: ioctl() failed\n");
+	//if((error = ioctl(tsl->file, I2C_SLAVE, tsl->address)) < 0)
+	//	DEBUG("error: ioctl() failed\n");
 
 	return error;
 }
@@ -339,18 +343,19 @@ void* tsl2561_init(int address, const char* i2c_device_filepath) {
 	tsl->type = 0;
 
 	// setup i2c device path
+    /*
 	tsl->i2c_device = (char*) malloc(strlen(i2c_device_filepath) * sizeof(char));
 	if(tsl->i2c_device == NULL) {
 		DEBUG("error: malloc returns NULL pointer!\n");
 		tsl2561_init_error_cleanup(_tsl);
 		return NULL;
-	}
+	}*/
 
 	// copy string
-	strcpy(tsl->i2c_device, i2c_device_filepath);
+	//strcpy(tsl->i2c_device, i2c_device_filepath);
 	
 	// open i2c device
-	int file;
+	/*int file;
 	if((file = open(tsl->i2c_device, O_RDWR)) < 0) {
 		DEBUG("error: open() failed\n");
 		tsl2561_init_error_cleanup(_tsl);
@@ -361,11 +366,12 @@ void* tsl2561_init(int address, const char* i2c_device_filepath) {
 	if(tsl2561_set_addr(_tsl) < 0) {
 		tsl2561_init_error_cleanup(_tsl);
 		return NULL;
-	}
+	}*/
 
 	// setup i2c device
 	tsl2561_enable(_tsl);
 	tsl2561_set_timing(_tsl, tsl->integration_time, tsl->gain);
+    tsl->fd = wiringPiI2CSetup(address);
 
 	DEBUG("device: open ok\n");
 
@@ -553,10 +559,10 @@ void tsl2561_read(void *_tsl, int *broadband, int *ir) {
 			usleep(0.403 * TSL2561_FACTOR_US);
 			break;
 	}
-
+    usleep(10 * 1000);
 	*broadband = tsl2561_read_word_data(_tsl, TSL2561_CMD_BIT | TSL2561_WORD_BIT | TSL2561_REG_CH0_LOW);
-	*ir = tsl2561_read_word_data(_tsl, TSL2561_CMD_BIT | TSL2561_WORD_BIT | TSL2561_REG_CH1_LOW);
-	
+    *ir = tsl2561_read_word_data(_tsl, TSL2561_CMD_BIT | TSL2561_WORD_BIT | TSL2561_REG_CH1_LOW);
+    
 	if( *broadband < 0 || *ir < 0){
 		DEBUG("error: i2c_smbus_read_word_data() failed\n");
 	} else {
