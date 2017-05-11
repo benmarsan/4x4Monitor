@@ -19,6 +19,9 @@
 #include <unistd.h>
 #include <wiringPi.h>
 #include <VL53L0X.h>
+#include "tsl2561.h"
+#include "DIST_SENSORS.h"
+#include "LUX_SENSOR.h"
 
 volatile sig_atomic_t exitFlag = 0;
 
@@ -28,26 +31,21 @@ void sigintHandler(int) {
 
 using namespace std;
 
+// VL54L0X distance sensor object array
+VL53L0X *sensors[DIST_SENSORS::SENSOR_COUNT];
+// TSL2561 lux sensor
+void *tsl;
+
 /*
  * 
  */
-int main(int argc, char** argv) {
+
+int init() {
     if (wiringPiSetup () < 0) {
         cerr << "wiringPi setup error" << endl;
         return 1;
     }
-    
-    // Configuration constants
-	// Number of sensors. If changed, make sure to adjust pins and addresses accordingly (ie to match size).
-	const int SENSOR_COUNT = 2;
-	// GPIO pins to use for sensors' XSHUT. As exported by WiringPi.
-	const uint8_t pins[SENSOR_COUNT] = { 0, 1 };
-	// Sensors' addresses that will be set and used. These have to be unique.
-	const uint8_t addresses[SENSOR_COUNT] = {
-		VL53L0X_ADDRESS_DEFAULT + 2,
-		VL53L0X_ADDRESS_DEFAULT + 4
-	};
-    
+
     // Register SIGINT handler
     signal(SIGINT, sigintHandler);
     
@@ -56,14 +54,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Create sensor object array
-    VL53L0X* sensors[SENSOR_COUNT];
-
     // Create sensors and set pin mode
-    for(int i = 0; !exitFlag && i < SENSOR_COUNT; ++i) {
-        pinMode(pins[i], OUTPUT);
-        digitalWrite(pins[i], LOW);
-        sensors[i] = new VL53L0X(pins[i], VL53L0X_ADDRESS_DEFAULT);
+    for(int i = 0; !exitFlag && i < DIST_SENSORS::SENSOR_COUNT; ++i) {
+        pinMode(DIST_SENSORS::pins[i], OUTPUT);
+        digitalWrite(DIST_SENSORS::pins[i], LOW);
+        sensors[i] = new VL53L0X(DIST_SENSORS::pins[i], VL53L0X_ADDRESS_DEFAULT);
         sensors[i]->powerOff();
     }
     
@@ -72,8 +67,8 @@ int main(int argc, char** argv) {
     }
     
     // Set up each sensor
-    for(int i = 0; !exitFlag && i < SENSOR_COUNT; ++i) {
-        digitalWrite(pins[i], HIGH);
+    for(int i = 0; !exitFlag && i < DIST_SENSORS::SENSOR_COUNT; ++i) {
+        digitalWrite(DIST_SENSORS::pins[i], HIGH);
         try {
             sensors[i]->init(false);
         } catch(string &err) {
@@ -84,15 +79,35 @@ int main(int argc, char** argv) {
         
         // Set lowest timing budget
         sensors[i]->setMeasurementTimingBudget(20000);
-        sensors[i]->setAddress(addresses[i]);
+        sensors[i]->setAddress(DIST_SENSORS::addresses[i]);
         
         cout << "Sensor " << i << " initialized, real time budget: "
                 << sensors[i]->getMeasurementTimingBudget() << endl;
     }
     
     // Start continuous measurement
-    for(int i = 0; !exitFlag && i < SENSOR_COUNT; ++i) {
+    for(int i = 0; !exitFlag && i < DIST_SENSORS::SENSOR_COUNT; ++i) {
         sensors[i]->startContinuous();
+    }
+    
+    tsl = tsl2561_init(LUX_SENSOR::address, LUX_SENSOR::i2c_device);
+    tsl2561_enable_autogain(tsl);
+    tsl2561_set_gain(tsl, TSL2561_INTEGRATION_TIME_13MS);
+    
+    if(tsl == NULL) {
+        cerr << "TSL2561 setup error" << endl;
+        return 1;
+    }
+}
+
+/*
+ * 
+ */
+int main(int argc, char** argv) {
+    if(init() != 0) {
+        cout << "Error in initialization" << endl;
+    } else {
+        cout << "Initialization completed successfully" << endl;
     }
     
     // Durations in nanoseconds
@@ -104,9 +119,11 @@ int main(int argc, char** argv) {
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     
     int j = 0;
-    for(; !exitFlag && j < 100000; ++j) {
-        cout << "\rReading" << setw(4) << setfill('0') << j << " | ";
-        for(int i = 0; !exitFlag && i < SENSOR_COUNT; ++i) {
+    for(; !exitFlag && j < 10000; ++j) {
+        cout << "\rReading" << setw(4) << setfill('0') << j << " mm | ";
+        
+        // Read distance sensors
+        for(int i = 0; !exitFlag && i < DIST_SENSORS::SENSOR_COUNT; ++i) {
             uint16_t distance;
             try {
                 distance = sensors[i]->readRangeContinuousMillimeters();
@@ -122,7 +139,12 @@ int main(int argc, char** argv) {
             }
         }
         
-        cout << endl;
+        // Read lux sensor
+        long lux;
+        lux = tsl2561_lux(tsl);
+        cout << setw(4) << lux << " lux | ";
+        
+        cout << flush;
         
         // Calculate current iteration time
         chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
@@ -155,11 +177,14 @@ int main(int argc, char** argv) {
     cout << "Avg frequency: " << 1000000000 / (totalDuration / ( j + 1 )) << "Hz" << endl;
     
     // Clean up: delete objects, set GPIO/XSHUT pins to low.
-    for(int i = 0; i < SENSOR_COUNT; ++i) {
+    for(int i = 0; i < DIST_SENSORS::SENSOR_COUNT; ++i) {
         sensors[i]->stopContinuous();
         delete sensors[i];
-        digitalWrite(pins[i], LOW);
+        digitalWrite(DIST_SENSORS::pins[i], LOW);
     }
+    
+    tsl2561_close(tsl);
+    LUX_SENSOR::i2c_device = NULL;
 
     return 0;
 }
