@@ -7,6 +7,7 @@
       <itemPath>DIST_SENSORS.h</itemPath>
       <itemPath>LUX_SENSOR.h</itemPath>
       <itemPath>connections.h</itemPath>
+      <itemPath>distanceSensors.h</itemPath>
       <itemPath>tsl2561.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
@@ -16,6 +17,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>distanceSensors.cpp</itemPath>
       <itemPath>main.cpp</itemPath>
       <itemPath>tsl2561.c</itemPath>
     </logicalFolder>
@@ -63,6 +65,10 @@
       </item>
       <item path="connections.h" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="distanceSensors.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="distanceSensors.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="tsl2561.c" ex="false" tool="0" flavor2="0">
@@ -95,6 +101,10 @@
       <item path="LUX_SENSOR.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="connections.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="distanceSensors.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="distanceSensors.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>

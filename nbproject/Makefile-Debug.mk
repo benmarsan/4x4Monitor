@@ -35,6 +35,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/distanceSensors.o \
 	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/tsl2561.o
 
@@ -62,6 +63,11 @@ LDLIBSOPTIONS=-Wl,-rpath,'/usr/include' -lvl53l0x -lwiringPi
 ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/4x4monitor: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/4x4monitor ${OBJECTFILES} ${LDLIBSOPTIONS} -std=c++11
+
+${OBJECTDIR}/distanceSensors.o: distanceSensors.cpp
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.cc) -g -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/distanceSensors.o distanceSensors.cpp
 
 ${OBJECTDIR}/main.o: main.cpp
 	${MKDIR} -p ${OBJECTDIR}
